@@ -1,4 +1,4 @@
-import numpy as np # Import Numpy
+import numpy as np # Import Numpy 
 
 def DH(d, theta, a, alpha):
     '''
@@ -73,12 +73,27 @@ def jacobian(T, revolute):
     #   a. Extract z and o.
     #   b. Check joint type.
     #   c. Modify corresponding column of J.
+
+    z0 = np.array([0,0,1]).T
+    o0 = np.array([0,0,0]).T
+    on = T[-1][0:3,3]
+
     J = np.array([])
-    for i in range(len(T)):
-        z = T[i][0:3,2]
-        o = T[i][0:3,3]
-        on = T[-1][0:3,3]
-        J = J + np.array([revolute * z@(on - o)])
+    for i in range(len(T[1:])):
+        if i == 0:
+            z = z0
+            o = o0
+        else:
+            z = T[i][0:3,2]
+            o = T[i][0:3,3]
+        up = revolute[i] * np.cross(z,(on - o))+(1-revolute[i])*z
+        down = revolute[i] * z
+
+        j2 = np.array([up[0],up[1],up[2],down[0],down[1],down[2]]).reshape(6,1)
+        if J.size == 0:
+            J = j2
+        else:
+            J =  np.hstack((J, j2))
     return J
 
 # Damped Least-Squares
@@ -93,7 +108,11 @@ def DLS(A, damping):
         Returns:
         (Numpy array): inversion of the input matrix
     '''
-    return # Implement the formula to compute the DLS of matrix A.
+    I = np.eye(6)  # Identity matrix matching columns of A
+    interior = A @ A.T + damping**2 * I
+    print (type(interior))
+    dls =  A.T @np.linalg.inv( interior  )
+    return dls # Implement the formula to compute the DLS of matrix A.
 
 # Extract characteristic points of a robot projected on X-Y plane
 def robotPoints2D(T):
