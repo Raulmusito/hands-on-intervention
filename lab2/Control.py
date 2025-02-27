@@ -9,8 +9,8 @@ a = np.array([0.75, 0.5])
 alpha = np.zeros(2)       
 revolute = [True, True]
 sigma_d = np.array([0.0, 1.0])
-K = np.diag([2, 2, 0, 0, 0, 0])
-K_DLS = np.diag([50, 50, 0, 0, 0, 0])
+K = np.diag([2, 2])
+K_DLS = np.diag([1, 1])
 
 # Simulation params
 dt = 1.0 / 60.0
@@ -67,12 +67,12 @@ def simulate_transpose(t):
 
     # Update robot kinematics
     T = kinematics(d, q_transpose, a, alpha)
-    J = jacobian(T, revolute)
+    J = jacobian(T, revolute)[:2,:]
 
     # Compute control error
     sigma = T[-1][:2, 3]       
     err = sigma_d - sigma      
-    err = np.array([err[0], err[1], 0, 0, 0, 0])
+    err = np.array([err[0], err[1]])
     
     err_distance_transpose.append(err[0]**2 + err[1]**2)
 
@@ -95,17 +95,17 @@ def simulate_DLS(t):
 
     # Update robot kinematics
     T = kinematics(d, q_DLS, a, alpha)
-    J = jacobian(T, revolute)
+    J = jacobian(T, revolute)[:2,:]
 
     # Compute control error
     sigma = T[-1][:2, 3]       
     err = sigma_d - sigma      
-    err = np.array([err[0], err[1], 0, 0, 0, 0])
+    err = np.array([err[0], err[1]])
     
     err_distance_DLS.append(err[0]**2 + err[1]**2)
 
     # Compute joint velocity using DLS
-    dq = DLS(J, 4) @ (err @ K_DLS)
+    dq = DLS(J, .1) @ (err @ K_DLS)
     q_DLS += dt * dq  
 
     # Update drawing
@@ -123,19 +123,19 @@ def simulate_Pinv(t):
 
     # Update robot kinematics
     T = kinematics(d, q_Pinv, a, alpha)
-    J = jacobian(T, revolute)
+    J = jacobian(T, revolute)[:2,:]
 
     # Compute control error
     sigma = T[-1][:2, 3]       
     err = sigma_d - sigma      
-    err = np.array([err[0], err[1], 0, 0, 0, 0])
+    err = np.array([err[0], err[1]])
     
     err_distance_Pinv.append(err[0]**2 + err[1]**2)
 
     # Compute joint velocity using Pseudo-Inverse
     dq = np.linalg.pinv(J) @ (err @ K)
-    q_Pinv += dt * dq  
-
+    q_Pinv += dt * dq
+    print ((q_Pinv.reshape(2,1)).shape)
     # Update drawing
     P = robotPoints2D(T)
     PPx_Pinv.append(P[0, -1])

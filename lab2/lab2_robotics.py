@@ -74,7 +74,7 @@ def jacobian(T, revolute):
     #   b. Check joint type.
     #   c. Modify corresponding column of J.
 
-    z0 = np.array([0,0,1]).T
+    """     z0 = np.array([0,0,1]).T
     o0 = np.array([0,0,0]).T
     on = T[-1][0:3,3]
 
@@ -94,6 +94,16 @@ def jacobian(T, revolute):
             J = j2
         else:
             J =  np.hstack((J, j2))
+    return J """
+    J = np.zeros((6,len(revolute)))
+    O = T[-1][0:3,3]
+    for i in range(len(revolute)):
+        z = T[i][0:3,2]
+        Oi = T[i][0:3,3]
+        if revolute[i]:
+            J[:,i] = np.concatenate((np.cross(z, O - Oi), z))
+        else:
+            J[:,i] = np.concatenate((z, np.zeros(3)))
     return J
 
 # Damped Least-Squares
@@ -108,9 +118,8 @@ def DLS(A, damping):
         Returns:
         (Numpy array): inversion of the input matrix
     '''
-    I = np.eye(6)  # Identity matrix matching columns of A
+    I = np.eye(2)  # Identity matrix matching columns of A
     interior = A @ A.T + damping**2 * I
-    print (type(interior))
     dls =  A.T @np.linalg.inv( interior  )
     return dls # Implement the formula to compute the DLS of matrix A.
 
