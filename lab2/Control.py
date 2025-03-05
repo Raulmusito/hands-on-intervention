@@ -62,23 +62,30 @@ def init():
     return lines + paths + points
 
 # --- Simulation Functions ---
-def simulate_transpose(t):
+def simulate_transpose(t): #simulate using the transpose function for inverting the jacobian
     global q_transpose
 
     # Update robot kinematics
     T = kinematics(d, q_transpose, a, alpha)
-    J = jacobian(T, revolute)[:2,:]
+    J = jacobian(T, revolute)[:2,:] # compute the jacobian by the accumulative method
+    """ Understand the Jacobian as the derivative of the end-effector position with respect to the joint angles velocities
+    
+    dx_EE = J(theta) * dtheta 
+    """
 
     # Compute control error
     sigma = T[-1][:2, 3]       
-    err = sigma_d - sigma      
-    err = np.array([err[0], err[1]])
+    err = sigma_d - sigma   # get the error between the desired and the actual position   
+    err = np.array([err[0], err[1]]) # reshape and convert the error to the correct form
     
-    err_distance_transpose.append(err[0]**2 + err[1]**2)
+    err_distance_transpose.append(err[0]**2 + err[1]**2) # get the error in meters
 
     # Compute joint velocity
     dq = J.T @ (err @ K)
-    q_transpose += dt * dq  
+    """
+    Acording to the previous definition of the Jacobian, we can compute the joint velocities by multiplying the transpose of the Jacobian by an EE velocity.
+    The error and the gain matrix multiplied are not a velocity, how can this be calculated? ask!!!!!!"""
+    q_transpose += dt * dq  # get the new joint angles by adding the joint velocities times the time step
 
     # Update drawing
     P = robotPoints2D(T)
@@ -90,7 +97,7 @@ def simulate_transpose(t):
 
     return lines[0], paths[0], points[0]
 
-def simulate_DLS(t):
+def simulate_DLS(t): #simulate using A TUNED DLS for inverting the jacobian
     global q_DLS
 
     # Update robot kinematics
@@ -118,7 +125,7 @@ def simulate_DLS(t):
 
     return lines[1], paths[1], points[1]
 
-def simulate_Pinv(t):
+def simulate_Pinv(t): #simulate using the numpy pseudoinverse (pinv) function for inverting the jacobian
     global q_Pinv
 
     # Update robot kinematics

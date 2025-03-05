@@ -118,9 +118,9 @@ def DLS(A, damping):
         Returns:
         (Numpy array): inversion of the input matrix
     '''
-    I = np.eye(6)  # Identity matrix matching columns of A
+    
+    I = np.eye(A.shape[0])  # Identity matrix matching columns of A
     interior = A @ A.T + damping**2 * I
-    print (type(interior))
     dls =  A.T @np.linalg.inv( interior  )
     return dls # Implement the formula to compute the DLS of matrix A.
 
