@@ -59,7 +59,7 @@ def simulate(t):
     Jbar = J                                  # Task Jacobian
     pin_J = np.linalg.pinv(J)                 # Pseudo-inverse of the Jacobian
     P =  np.eye(3) - pin_J@ J         # Null space projector
-    y = np.array([np.sin(t), 3*np.cos(t), np.tan(t)]).reshape(3,1)       # Arbitrary joint velocity
+    y = np.array([0*np.sin(t), 1*np.cos(t), 0*np.tan(t)]).reshape(3,1)       # Arbitrary joint velocity
     dq = np.linalg.pinv(Jbar)@ err + P @ y # Control signal
     q = q + dt * dq # Simulation update
     qvec1.append(q[0][0]) #append(q) # Save joint values for plotting

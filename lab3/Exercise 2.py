@@ -36,10 +36,12 @@ point, = ax.plot([], [], 'rx') # Target
 PPx = []
 PPy = []
 
-errorvec1 = []
-errorvec2 = []
+errorvec1 = [] # vector containing the norm error of the end effector position of each iteration
+errorvec2 = []  # vector containing the error of the joint position of each iteration
 
-flag = 1
+# Limit the maximum joint velocity
+max_joint_velocity = 1 # rad/s
+dq_max = np.array([max_joint_velocity] * 3).reshape(3,1)  # Suponiendo 3 DOF
 
 # Simulation initialization
 def init():
@@ -73,17 +75,24 @@ def simulate(t):
     errorvec1.append(m.sqrt(err1[0]**2+err1[1]**2))
     errorvec2.append(abs(err2[0]))
     # Combining tasks
+
+    """ Using the speudo inverse didnt work, so we used the DLS method """
     #dq1 = np.linalg.pinv(J1)@ err1 # Control signal
     #dq12 = dq1 + np.linalg.pinv(J2bar)@((err2-J2@dq1).reshape(1,1))       
     dq1 = DLS(J1, 0.1)@ err1                                               # Velocities for task 1
     dq12 = dq1 + DLS(J2bar, 0.2)@ ((err2-J2@dq1).reshape(1,1))             # Velocity for both tasks
+
+    # Clip the joint velocities
+    dq12 = np.clip(dq12, -dq_max, dq_max)
+    
     q = q + dq12 * dt # Simulation update
+
 
     # Change of goal
     if m.sqrt(err1[0]**2+err1[1]**2) < 0.01:
         sigma1_iter += 1
 
-        
+    
     # Update drawing
     PP = robotPoints2D(T)
     line.set_data(PP[0,:], PP[1,:])

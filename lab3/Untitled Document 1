@@ -1,0 +1,10 @@
+- if the robot has more joints than the task space dimensions, then the robot is kinematically redundant, we can take advantage of this to perform more dextereuos movements while developing a task. Another advantage of having a redundant robot is, in the case of a joint mallfunciton, the robot may still be able to complete the task.
+
+- To compute the
+
+- The null space of the jacobian represents all the joint velocities that dont affect the currect task of the jacobian 
+	mathecmatically speaking this means that the null space of the jacobian is the set of velocities that satisfy :
+	J*dq = 0   meaning that when applying that dq (joint velocity) the velocity in the end effector will be cero. 
+
+	P is the projectior of the null space. If the system is redundant will be different than 0
+	P = I - J^-1 @ J 
