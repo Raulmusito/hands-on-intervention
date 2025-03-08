@@ -91,15 +91,17 @@ def simulate(t):
     """               Uncomment one of the two options below                        """
 
 
-    """ First task = end effector position | Second task = joint position """    
-    #dq1 = DLS(J1, 0.1)@ err1                                               # Velocities for task 1
-    #J2bar = (J2@P1)                                                        # Augmented Jacobian
-    #dq12 = dq1 + DLS(J2bar, 0.2)@ ((err2-J2@dq1).reshape(1,1))             # Velocity for both tasks
+    """ First task = end effector position | Second task = joint position """               #-----------|            
+    #dq1 = DLS(J1, 0.1)@ err1                                               # Velocities for task 1      |
+    #J2bar = (J2@P1)                                                        # Augmented Jacobian         |  
+    #dq12 = dq1 + DLS(J2bar, 0.2)@ ((err2-J2@dq1).reshape(1,1))             # Velocity for both tasks    |
+                                                                           #                            |                                       
+    """ First task = joint position | Second task = end effector position """#                          |
+    dq2 = DLS(J2, 0.1)@ err2                                                # Velocities for task 1    |
+    J1bar = (J1@P2)                                                         # Augmented Jacobian       |
+    dq12 = dq2 + DLS(J1bar, 0.2)@ ((err1-J1@dq2).reshape(2,1))              # Velocity for both tasks  |
+                                                                                            #-----------|  
 
-    """ First task = joint position | Second task = end effector position """ 
-    dq2 = DLS(J2, 0.1)@ err2                                                # Velocities for task 1
-    J1bar = (J1@P2)                                                         # Augmented Jacobian
-    dq12 = dq2 + DLS(J1bar, 0.2)@ ((err1-J1@dq2).reshape(2,1))              # Velocity for both tasks
 
     # Clip the joint velocities
     dq12 = np.clip(dq12, -dq_max, dq_max)
