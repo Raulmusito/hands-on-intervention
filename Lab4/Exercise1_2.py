@@ -13,8 +13,12 @@ robot = Manipulator(d, theta, a, alpha, revolute) # Manipulator object
 
 # Task hierarchy definition
 tasks = [ 
-            #Position2D("End-effector position", np.array([-1,-1]).reshape(2,1), robot)
-            Orientation2D("End-effector orientation", np.array([np.pi/2]).reshape(1,1), robot)
+            #Position2D("End-effector position", np.array([1,-1]).reshape(2,1), robot)
+            #Orientation2D("End-effector orientation", np.array([-np.pi/2]).reshape(1,1), robot)
+            Configuration2D("End-effector configuration", np.array([-1,-1,-np.pi/2]).reshape(3,1), robot),
+            #JointPosition("Joint 1",  np.array([np.pi/2]).reshape(1,1), robot,1),
+            #JointPosition("Joint 2",  np.array([0]).reshape(1,1), robot,2),
+            JointPosition("Joint 3",  np.array([0]).reshape(1,1), robot,2)
         ] 
 
 # Simulation params
@@ -67,10 +71,15 @@ def simulate(t):
 
     for i in tasks:
         i.update(robot)                             # update task Jacobian and error
-        J = i.getJacobian() #i.Jacobian()           # task full Jacobian
-        Jbar = J @ null_space                       # projection of task in null-space
-        Jbar_inv = DLS(Jbar, 0.1)                   # pseudo-inverse or DLS
-        dq += Jbar_inv @ ((i.getError()-J@dq).reshape(2,1))      # calculate quasi-velocities with null-space tasks execution
+        print ("i.getJacobian(): ", i.J)
+        print ("null_space: ", null_space)
+        J = i.getJacobian()           # task full Jacobian
+        Jbar = (J @ null_space)                      # projection of task in null-space
+        Jbar_inv = DLS(Jbar, 0.1)                    # pseudo-inverse or DLS
+        print ("Jbar_inv: ", Jbar_inv)
+        print ("j@dq: ", J@dq)
+        print ("i.getError(): ", i.getError())
+        dq += Jbar_inv @ ((i.getError()-J@dq))      # calculate quasi-velocities with null-space tasks execution
         null_space = null_space - np.linalg.pinv(Jbar) @ Jbar   # update null-space projector
 
     

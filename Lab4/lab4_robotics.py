@@ -87,6 +87,9 @@ class Manipulator:
     '''
     def getEEJacobian(self):
         return jacobian(self.T, self.revolute)
+    
+    def getLINKJacobian(self, link):
+        return jacobianLink(self.T, self.revolute, link)
 
     '''
         Method that returns the end-effector transformation.
@@ -111,6 +114,9 @@ class Manipulator:
     '''
     def getDOF(self):
         return self.dof
+    
+    def getLinkOrientation(self, link):
+        return np.array(np.arctan2(self.T[link][1,0], self.T[link][0,0])).reshape((1,1))
 
 '''
     Base class representing an abstract Task.
@@ -174,7 +180,7 @@ class Position2D(Task):
         
         
     def update(self, robot: Manipulator):
-        self.J = robot.getEEJacobian()[:2,:]                     # Update task Jacobian
+        self.J = robot.getEEJacobian()[:2,:].reshape((2,3))                     # Update task Jacobian
         self.err = np.array(self.getDesired() - robot.getEETransform()[0:2,3].reshape((2,1))) # Update task error
         pass # to remove
 '''
@@ -183,12 +189,13 @@ class Position2D(Task):
 class Orientation2D(Task):
     def __init__(self, name, desired, robot: Manipulator):
         super().__init__(name, desired)
-        self.J = np.zeros((2,robot.getDOF()))# Initialize with proper dimensions
+        self.J = np.zeros((1,robot.getDOF()))# Initialize with proper dimensions
         self.err = np.zeros((1,1))# Initialize with proper dimensions
         
     def update(self, robot: Manipulator):
-        self.J = robot.getEEJacobian()[:2,:]   # Update task Jacobian
+        self.J = robot.getEEJacobian()[5,:].reshape((1,3))   # Update task Jacobian
         current_sigma = np.array(np.arctan2(robot.getEETransform()[1,0], robot.getEETransform()[0,0])).reshape((1,1)) # Compute current sigma
+        print('current_sigma:',current_sigma)
         self.err = wrapangle(self.getDesired() - current_sigma.reshape((1,1))) # Update task error
         print ("angular error: ", self.err)
         pass # to remove
@@ -202,10 +209,10 @@ class Configuration2D(Task):
         self.err = np.zeros((3,1))# Initialize with proper dimensions
         
     def update(self, robot: Manipulator):
-        self.J = robot.getEEJacobian()[:3,:] # Update task Jacobian
+        self.J[0:2,:] = robot.getEEJacobian()[0:2,:] # Update task Jacobian
+        self.J[2,:] = robot.getEEJacobian()[5,:]
         current_sigma_angle = np.arctan2(robot.getEETransform()[1,0], robot.getEETransform()[0,0]) # Compute current sigma angle
         current_sigma_pos = robot.getEETransform()[0:2,3] # Compute current sigma position
-
         error_pos = self.getDesired()[0:2] - current_sigma_pos.reshape((2,1)) # Compute position error
         error_angle = self.getDesired()[2] - current_sigma_angle
         print ("angular error: ", error_angle)
@@ -215,4 +222,18 @@ class Configuration2D(Task):
 ''' 
     Subclass of Task, representing the joint position task.
 '''
-# class JointPosition(Task):
+class JointPosition(Task):
+    def __init__(self, name, desired, robot: Manipulator, link):
+        super().__init__(name, desired)
+        self.link = link
+        self.J = np.zeros((1,self.link))# Initialize with proper dimensions
+        self.err = np.zeros((1,1))# Initialize with proper dimensions
+        
+    def update(self, robot: Manipulator):
+        self.J = robot.getLINKJacobian(self.link)[5,:].reshape((1,self.link))   # Update task Jacobian
+        self.J = np.pad(self.J, (0, robot.dof - self.link), mode='constant', constant_values=0)
+        current_sigma = robot.getLinkOrientation(self.link) # Compute current sigma
+        print('current_sigma:',current_sigma)
+        self.err = wrapangle(self.getDesired() - current_sigma.reshape((1,1))) # Update task error
+        print ("angular error: ", self.err)
+        pass # to remove
