@@ -8,8 +8,8 @@ import time
 # Robot definition (3 revolute joint planar manipulator)
 d = np.zeros(3)                              # displacement along Z-axis
 q = np.array([0.2,0.5,0.4]).reshape(3,1)     # rotation around Z-axis (theta)
-alpha = np.zeros(3)                          # displacement along X-axis
-a = np.array([0.75, 0.5, 0.4])               # rotation around X-axis 
+alpha = np.zeros(3)                          # rotation around X-axis
+a = np.array([0.75, 0.5, 0.4])               # displacement along X-axis
 revolute = [True,True,True]                  # flags specifying the type of joints
 
 # Desired values of task variables
@@ -50,7 +50,7 @@ velocity_q3 = [] # vector containing the velocity of joint 3 of each iteration
 
 # Limit the maximum joint velocity
 #max_joint_velocity = 1 # rad/s
-dq_max = np.array([.5 ,1 ,1.5]).reshape(3,1)  # Suponiendo 3 DOF
+dq_max = np.array([10 ,10 ,10]).reshape(3,1)  # Suponiendo 3 DOF
 
 # Simulation initialization
 def init():
@@ -92,15 +92,15 @@ def simulate(t):
 
 
     """ First task = end effector position | Second task = joint position """               #-----------|            
-    #dq1 = DLS(J1, 0.1)@ err1                                               # Velocities for task 1      |
-    #J2bar = (J2@P1)                                                        # Augmented Jacobian         |  
-    #dq12 = dq1 + DLS(J2bar, 0.2)@ ((err2-J2@dq1).reshape(1,1))             # Velocity for both tasks    |
+    #dq1 = DLS(J1, 0.1)@ err1                                              # Velocities for task 1      |
+    #J2bar = (J2@P1)                                                       # Augmented Jacobian         |  
+    #dq12 = dq1 + DLS(J2bar, 0.2)@ ((err2-J2@dq1).reshape(1,1))            # Velocity for both tasks    |
                                                                            #                            |                                       
     """ First task = joint position | Second task = end effector position """#                          |
     dq2 = DLS(J2, 0.1)@ err2                                                # Velocities for task 1    |
     J1bar = (J1@P2)                                                         # Augmented Jacobian       |
     dq12 = dq2 + DLS(J1bar, 0.2)@ ((err1-J1@dq2).reshape(2,1))              # Velocity for both tasks  |
-                                                                                            #-----------|  
+                                                                                           #-----------|  
 
 
     # Clip the joint velocities
@@ -117,7 +117,7 @@ def simulate(t):
     current_time = time.time()
     
     # Verify 10 sec
-    if (current_time - start_time) >= 10 or errorvec1[-1] < 0.1:
+    if (current_time - start_time) >= 10: #or errorvec1[-1] < 0.1:
         sigma1_d = set_random_goal()
         start_time = current_time  # Reiniciar el tiempo
 

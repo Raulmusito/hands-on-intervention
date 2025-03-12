@@ -1,22 +1,25 @@
 from lab4_robotics import * # Includes numpy import
 import matplotlib.pyplot as plt
 import matplotlib.animation as anim
+import numpy as np
 
 # Robot model - 3-link manipulator
-d =                             # displacement along Z-axis
-theta =                         # rotation around Z-axis
-alpha =                         # rotation around X-axis
-a =                             # displacement along X-axis
-revolute =                      # flags specifying the type of joints
+d = np.zeros(3)                              # displacement along Z-axis
+theta = np.array([0.2,0.5,0.4]).reshape(3,1) # rotation around Z-axis (q)
+alpha = np.zeros(3)                          # displacement along X-axis
+a = np.array([0.75, 0.5, 0.4])               # rotation around X-axis 
+revolute = [True,True,True]                  # flags specifying the type of joints
 robot = Manipulator(d, theta, a, alpha, revolute) # Manipulator object
 
 # Task hierarchy definition
 tasks = [ 
-            Position2D("End-effector position", np.array([1.0, 0.5]).reshape(2,1))
+            Position2D("End-effector position", np.array([1.0, 0.5]).reshape(2,1), robot)
         ] 
 
 # Simulation params
 dt = 1.0/60.0
+Tt = 50 # Total simulation time
+tt = np.arange(0, Tt, dt) # Simulation time vector
 
 # Drawing preparation
 fig = plt.figure()
@@ -56,6 +59,22 @@ def simulate(t):
         # Accumulate velocity
         # Update null-space projector
     ###
+
+
+    null_space = np.eye(robot.dof)                  # initial null space P (projector)
+    dq = np.zeros(robot.dof).reshape(-1, 1)         # initial quasi-velocities
+
+    for i in tasks:
+        i.update(robot)                             # update task Jacobian and error
+        J = i.getJacobian() #i.Jacobian()           # task full Jacobian
+        Jbar = null_space @ J                       # projection of task in null-space
+        Jbar_inv = DLS(Jbar, 0.2)                   # pseudo-inverse or DLS
+        # dq12 = dq2 + DLS(J1bar, 0.2)@ ((err1-J1@dq2).reshape(2,1))
+        # i_dq = null_space @ Jinv @ i.getError()
+        dq += Jbar_inv @ ((i.getError()-J@dq))      # calculate quasi-velocities with null-space tasks execution
+        null_space = null_space - Jbar_inv @ Jbar   # update null-space projector
+
+    
 
     # Update robot
     robot.update(dq, dt)

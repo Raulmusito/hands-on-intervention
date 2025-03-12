@@ -1,4 +1,3 @@
-import numpy as np
 from lab2_robotics import * # Includes numpy import
 
 def jacobianLink(T, revolute, link): # Needed in Exercise 2
@@ -169,42 +168,43 @@ class Task:
 class Position2D(Task):
     def __init__(self, name, desired, robot: Manipulator):
         super().__init__(name, desired)
-        self.robot = robot
-        self.J = np.zeros((2,self.robot.getDOF()))                  # Initialize with proper dimensions
+        self.J = np.zeros((2,robot.getDOF()))                  # Initialize with proper dimensions
         self.err = np.zeros((2,1))                                  # Initialize with proper dimensions
         
         
-    def update(selfd):
-        self.J = self.robot.getEEJacobian[2:,:]                     # Update task Jacobian
-        self.err = self.getDesired - self.robot.getJointPos(-1)     # Update task error
-        pass # to remove
+    def update(self, robot: Manipulator):
+        self.J = robot.getEEJacobian()[2:,:]                     # Update task Jacobian
+        self.err = np.array([self.getDesired - robot.getEETransform[0:2,3]]).reshape((2,1)) # Update task error
+        # pass # to remove
 '''
     Subclass of Task, representing the 2D orientation task.
 '''
 class Orientation2D(Task):
-    def __init__(self, name, desired):
+    def __init__(self, name, desired, robot: Manipulator):
         super().__init__(name, desired)
-        #self.J = # Initialize with proper dimensions
-        #self.err = # Initialize with proper dimensions
+        self.J = np.zeros((2,robot.getDOF()))# Initialize with proper dimensions
+        self.err = np.zeros((1,1))# Initialize with proper dimensions
         
     def update(self, robot):
-        #self.J = # Update task Jacobian
-        #self.err = # Update task error
-        pass # to remove
+        self.J = robot.getEEJacobian[2:,:]   # Update task Jacobian
+        current_sigma = np.array(np.arctan2(robot.getEETransform[1,0], robot.getEETransform[0,0])).reshape((1,1)) # Compute current sigma
+        self.err = self.getDesired - current_sigma # Update task error
+        # pass # to remove
 '''
     Subclass of Task, representing the 2D configuration task.
 '''
 class Configuration2D(Task):
-    def __init__(self, name, desired):
+    def __init__(self, name, desired, robot: Manipulator):
         super().__init__(name, desired)
-        #self.J = # Initialize with proper dimensions
-        #self.err = # Initialize with proper dimensions
+        self.J = np.zeros((2,robot.getDOF()))# Initialize with proper dimensions
+        self.err = np.zeros((3,1))# Initialize with proper dimensions
         
     def update(self, robot):
-        #self.J = # Update task Jacobian
-        #self.err = # Update task error
-        pass # to remove
-
+        self.J = robot.getEEJacobian[2:,:] # Update task Jacobian
+        current_sigma_angle = np.arctan2(robot.getEETransform[1,0], robot.getEETransform[0,0]) # Compute current sigma angle
+        current_sigma_pos = robot.getEETransform[0:2,3] # Compute current sigma position
+        self.err = np.array([np.concatenate((self.getDesired[0:2] - current_sigma_pos, self.getDesired[2] - current_sigma_angle))]).reshape(3,1) # Update task error
+        
 ''' 
     Subclass of Task, representing the joint position task.
 '''
