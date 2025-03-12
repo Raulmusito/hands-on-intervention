@@ -1,5 +1,9 @@
 import numpy as np # Import Numpy 
 
+def wrapangle (angle):
+    return (angle + np.pi) % (2 * np.pi) - np.pi
+
+
 def DH(d, theta, a, alpha):
     '''
         Function builds elementary Denavit-Hartenberg transformation matrices 
@@ -45,6 +49,7 @@ def kinematics(d, theta, a, alpha):
         Returns:
         (list of Numpy array): list of transformations along the kinematic chain (from the base frame)
     '''
+
     T = [np.eye(4)] # Base transformation
 
     # For each set of DH parameters:
@@ -107,7 +112,7 @@ def DLS(A, damping):
     # Maybe it is worth implementing the variable damping factor
     # yes, I wrote this, is not AI :(
 
-    I = np.eye(2)  # Identity matrix matching columns of A
+    I = np.eye(A.shape[0])  # Identity matrix matching columns of A
 
     # Compute the DLS 
     interior = A @ A.T + damping**2 * I
@@ -131,4 +136,3 @@ def robotPoints2D(T):
         P[:,i] = T[i][0:2,3]
     return P
 
-print(DH(4,5,6,7))

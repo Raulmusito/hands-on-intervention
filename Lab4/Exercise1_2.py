@@ -5,15 +5,16 @@ import numpy as np
 
 # Robot model - 3-link manipulator
 d = np.zeros(3)                              # displacement along Z-axis
-theta = np.array([0.2,0.5,0.4]).reshape(3,1) # rotation around Z-axis (q)
+theta = np.array([0.2,0.5,0.4]).reshape(1,3)[0] # rotation around Z-axis (q)
 alpha = np.zeros(3)                          # displacement along X-axis
-a = np.array([0.75, 0.5, 0.4])               # rotation around X-axis 
+a = np.array([0.75, 0.5, 0.4]).reshape(1,3)[0]               # rotation around X-axis 
 revolute = [True,True,True]                  # flags specifying the type of joints
 robot = Manipulator(d, theta, a, alpha, revolute) # Manipulator object
 
 # Task hierarchy definition
 tasks = [ 
-            Position2D("End-effector position", np.array([1.0, 0.5]).reshape(2,1), robot)
+            #Position2D("End-effector position", np.array([-1,-1]).reshape(2,1), robot)
+            Orientation2D("End-effector orientation", np.array([np.pi/2]).reshape(1,1), robot)
         ] 
 
 # Simulation params
@@ -67,12 +68,10 @@ def simulate(t):
     for i in tasks:
         i.update(robot)                             # update task Jacobian and error
         J = i.getJacobian() #i.Jacobian()           # task full Jacobian
-        Jbar = null_space @ J                       # projection of task in null-space
-        Jbar_inv = DLS(Jbar, 0.2)                   # pseudo-inverse or DLS
-        # dq12 = dq2 + DLS(J1bar, 0.2)@ ((err1-J1@dq2).reshape(2,1))
-        # i_dq = null_space @ Jinv @ i.getError()
-        dq += Jbar_inv @ ((i.getError()-J@dq))      # calculate quasi-velocities with null-space tasks execution
-        null_space = null_space - Jbar_inv @ Jbar   # update null-space projector
+        Jbar = J @ null_space                       # projection of task in null-space
+        Jbar_inv = DLS(Jbar, 0.1)                   # pseudo-inverse or DLS
+        dq += Jbar_inv @ ((i.getError()-J@dq).reshape(2,1))      # calculate quasi-velocities with null-space tasks execution
+        null_space = null_space - np.linalg.pinv(Jbar) @ Jbar   # update null-space projector
 
     
 
@@ -85,7 +84,7 @@ def simulate(t):
     PPx.append(PP[0,-1])
     PPy.append(PP[1,-1])
     path.set_data(PPx, PPy)
-    point.set_data(tasks[0].getDesired()[0], tasks[0].getDesired()[1])
+    #point.set_data(tasks[0].getDesired()[0], tasks[0].getDesired()[1])
 
     return line, path, point
 
