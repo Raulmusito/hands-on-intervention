@@ -3,6 +3,7 @@ import numpy as np # Import Numpy
 def wrapangle (angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
+
 def DH(d, theta, a, alpha):
     '''
         Function builds elementary Denavit-Hartenberg transformation matrices 

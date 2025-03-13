@@ -2,29 +2,31 @@ from lab4_robotics import * # Includes numpy import
 import matplotlib.pyplot as plt
 import matplotlib.animation as anim
 import numpy as np
+import time
 
 # Robot model - 3-link manipulator
-d = np.zeros(3)                              # displacement along Z-axis
-theta = np.array([0.2,0.5,0.4]).reshape(1,3)[0] # rotation around Z-axis (q)
-alpha = np.zeros(3)                          # displacement along X-axis
-a = np.array([0.75, 0.5, 0.4]).reshape(1,3)[0]               # rotation around X-axis 
-revolute = [True,True,True]                  # flags specifying the type of joints
-robot = Manipulator(d, theta, a, alpha, revolute) # Manipulator object
+d = np.zeros(3)                                     # displacement along Z-axis
+theta = np.array([0.2,0.5,0.4]).reshape(1,3)[0]     # rotation around Z-axis (q)
+alpha = np.zeros(3)                                 # displacement along X-axis
+a = np.array([0.75, 0.5, 0.4]).reshape(1,3)[0]      # rotation around X-axis 
+revolute = [True,True,True]                         # flags specifying the type of joints
+robot = Manipulator(d, theta, a, alpha, revolute)   # Manipulator object
 
 # Task hierarchy definition
 tasks = [ 
-            #Position2D("End-effector position", np.array([1,-1]).reshape(2,1), robot)
-            #Orientation2D("End-effector orientation", np.array([-np.pi/2]).reshape(1,1), robot)
-            Configuration2D("End-effector configuration", np.array([-1,-1,-np.pi/2]).reshape(3,1), robot),
+            Position2D("End-effector position", np.array([1,-1]).reshape(2,1), robot,1),
+            #Orientation2D("End-effector orientation", np.array([np.pi]).reshape(1,1), robot,1)
+            #Configuration2D("End-effector configuration", np.array([-1,-1,-np.pi/2]).reshape(3,1), robot,3),
             #JointPosition("Joint 1",  np.array([np.pi/2]).reshape(1,1), robot,1),
             #JointPosition("Joint 2",  np.array([0]).reshape(1,1), robot,2),
-            JointPosition("Joint 3",  np.array([0]).reshape(1,1), robot,2)
+            JointPosition("Joint 3",  np.array([-np.pi/2]).reshape(1,1), robot,3)
         ] 
 
 # Simulation params
-dt = 1.0/60.0
-Tt = 50 # Total simulation time
-tt = np.arange(0, Tt, dt) # Simulation time vector
+dt = 1.0/60.0               # Time step
+Tt = 500                     # Total simulation time
+tt = np.arange(0, Tt, dt)   # Simulation time vector
+start_time = time.time()    # Start time
 
 # Drawing preparation
 fig = plt.figure()
@@ -53,6 +55,7 @@ def simulate(t):
     global tasks
     global robot
     global PPx, PPy
+    global start_time
 
     ### Recursive Task-Priority algorithm
     # Initialize null-space projector
@@ -79,9 +82,17 @@ def simulate(t):
         print ("Jbar_inv: ", Jbar_inv)
         print ("j@dq: ", J@dq)
         print ("i.getError(): ", i.getError())
-        dq += Jbar_inv @ ((i.getError()-J@dq))      # calculate quasi-velocities with null-space tasks execution
+        print ("k: ", i.getK)
+        dq += Jbar_inv @ ((i.getK()@i.getError()-J@dq) + i.ff)      # calculate quasi-velocities with null-space tasks execution
         null_space = null_space - np.linalg.pinv(Jbar) @ Jbar   # update null-space projector
 
+
+    current_time = time.time()
+    # Verify 10 sec
+    if (current_time - start_time) >= 5: #or errorvec1[-1] < 0.1:
+        start_time = current_time  # Reiniciar el tiempo
+        for i in tasks:
+            i.setRandomDesired()
     
 
     # Update robot
@@ -93,11 +104,27 @@ def simulate(t):
     PPx.append(PP[0,-1])
     PPy.append(PP[1,-1])
     path.set_data(PPx, PPy)
-    #point.set_data(tasks[0].getDesired()[0], tasks[0].getDesired()[1])
+    if len(tasks[0].getDesired()) > 1:
+        point.set_data(tasks[0].getDesired()[0], tasks[0].getDesired()[1])
 
     return line, path, point
 
 # Run simulation
 animation = anim.FuncAnimation(fig, simulate, np.arange(0, 10, dt), 
                                 interval=10, blit=True, init_func=init, repeat=True)
+plt.show()
+
+# Plot errors
+plt.figure()
+for i in tasks:
+    if type(i) is Configuration2D:
+        plt.plot(tt[:len(i.erroVec[0])], i.erroVec[0], label='Position Error')
+        plt.plot(tt[:len(i.erroVec[1])], i.erroVec[1], label='Angular Error')
+    else:
+        plt.plot(tt[:len(i.erroVec)], i.erroVec, label=i.name)
+plt.title('Error Values Over Time')
+plt.xlabel('Error [s]')
+plt.ylabel('Joint Values [rads]')
+
+plt.legend()
 plt.show()
