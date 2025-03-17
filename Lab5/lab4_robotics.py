@@ -58,7 +58,9 @@ class Manipulator:
         self.revolute = revolute
         self.dof = len(self.revolute)
         self.q = np.array(theta).reshape(-1, 1)
+        self.story = []
         self.update(0.0, 0.0)
+
 
     '''
         Method that updates the state of the robot.
@@ -69,6 +71,7 @@ class Manipulator:
     '''
     def update(self, dq, dt):
         self.q += dq * dt
+        self.story.append(self.q[0][0])
         for i in range(len(self.revolute)):
             if self.revolute[i]:
                 self.theta[i] = self.q[i]
@@ -115,8 +118,13 @@ class Manipulator:
     def getDOF(self):
         return self.dof
     
+    def getLinkTransform(self, link):
+        return self.T[link]
+        
+
     def getLinkOrientation(self, link):
-        return np.array(np.arctan2(self.T[link][1,0], self.T[link][0,0])).reshape((1,1))
+        linkT = self.getLinkTransform(link)
+        return np.array(np.arctan2(linkT[1,0], linkT[0,0])).reshape((1,1))
 
 '''
     Base class representing an abstract Task.
@@ -132,7 +140,23 @@ class Task:
     def __init__(self, name, desired):
         self.name = name # task title
         self.sigma_d = desired # desired sigma
-        
+        self.erroVec = [] # error vector
+        #self.l
+        self.ff = None
+        self.k = None
+
+    def getFF(self):
+        return self.ff
+    
+    def setFF(self, ff):
+        self.ff = ff
+
+    def getK(self):
+        return self.k
+
+    def setK(self, k):
+        self.k = k
+ 
     '''
         Method updating the task variables (abstract).
 
@@ -168,58 +192,101 @@ class Task:
     '''    
     def getError(self):
         return self.err
+    
+    """
+        Method that activation state of the task.
+    """
+    def isActive (self):
+        return self.active
 
 '''
     Subclass of Task, representing the 2D position task.
 '''
 class Position2D(Task):
-    def __init__(self, name, desired, robot: Manipulator):
-        super().__init__(name, desired)
+    def __init__(self, name, robot: Manipulator, link):
+        super().__init__(name, self.setRandomDesired())
         self.J = np.zeros((2,robot.getDOF()))                  # Initialize with proper dimensions
         self.err = np.zeros((2,1))                                  # Initialize with proper dimensions
+        self.setK(np.eye(2))
+        self.setFF(np.zeros((2,1)))
+        self.link = link
         self.active = True
-
-    def activate (self):
-        return True
         
     def update(self, robot: Manipulator):
-        self.J = robot.getEEJacobian()[:2,:].reshape((2,3))                     # Update task Jacobian
-        self.err = np.array(self.getDesired() - robot.getEETransform()[0:2,3].reshape((2,1))) # Update task error
-        pass # to remove
+        self.J = robot.getLINKJacobian(self.link)[:2,:].reshape((2,self.link))                     # Update task Jacobian
+        self.J = np.hstack((self.J, np.zeros((2, robot.dof - self.link))))
+        self.err = np.array(self.getDesired() - robot.getLinkTransform(self.link)[0:2,3].reshape((2,1))) # Update task error
+        self.erroVec.append(np.linalg.norm(self.err))
+
+    def setRandomDesired(self):
+        random = (np.random.rand(2,1)*2-1).reshape((2,1))
+        self.setDesired(random)
+        return random
+
 '''
     Subclass of Task, representing the 2D orientation task.
 '''
 class Orientation2D(Task):
-    def __init__(self, name, desired, robot: Manipulator):
+    def __init__(self, name, desired, robot: Manipulator, link):
         super().__init__(name, desired)
         self.J = np.zeros((1,robot.getDOF()))# Initialize with proper dimensions
         self.err = np.zeros((1,1))# Initialize with proper dimensions
+        self.setK(np.eye(1))
+        self.setFF(np.zeros((1,1)))
+        self.link = link
+
         
     def update(self, robot: Manipulator):
-        self.J = robot.getEEJacobian()[5,:].reshape((1,3))   # Update task Jacobian
-        current_sigma = np.array(np.arctan2(robot.getEETransform()[1,0], robot.getEETransform()[0,0])).reshape((1,1)) # Compute current sigma
+        self.J = robot.getLINKJacobian(self.link)[5,:].reshape((1,self.link))   # Update task Jacobian
+        self.J = np.pad(self.J, (0, robot.dof - self.link), mode='constant', constant_values=0)
+        current_transform = robot.getLinkTransform(self.link) # Compute current sigma
+        current_sigma = np.array(np.arctan2(current_transform[1,0], current_transform[0,0])).reshape((1,1)) # Compute current sigma
         print('current_sigma:',current_sigma)
         self.err = wrapangle(self.getDesired() - current_sigma.reshape((1,1))) # Update task error
         print ("angular error: ", self.err)
+        self.erroVec.append(self.err[0])
         pass # to remove
+
+    def setRandomDesired(self):
+        self.setDesired( (np.random.rand(1,1)*2*np.pi-np.pi).reshape((1,1)))
+        self.setDesired(np.array([np.pi]).reshape(1,1))
+        pass
 '''
     Subclass of Task, representing the 2D configuration task.
 '''
 class Configuration2D(Task):
-    def __init__(self, name, desired, robot: Manipulator):
+    def __init__(self, name, desired, robot: Manipulator, link):
         super().__init__(name, desired)
         self.J = np.zeros((3,robot.getDOF()))# Initialize with proper dimensions
         self.err = np.zeros((3,1))# Initialize with proper dimensions
+        self.erroVec = [[],[]]
+        self.setK(np.eye(3))
+        self.setFF(np.zeros((3,1)))
+        self.link = link
+
+
         
     def update(self, robot: Manipulator):
-        self.J[0:2,:] = robot.getEEJacobian()[0:2,:] # Update task Jacobian
-        self.J[2,:] = robot.getEEJacobian()[5,:]
-        current_sigma_angle = np.arctan2(robot.getEETransform()[1,0], robot.getEETransform()[0,0]) # Compute current sigma angle
-        current_sigma_pos = robot.getEETransform()[0:2,3] # Compute current sigma position
+        positionJacobian = robot.getLINKJacobian(self.link)[:2,:].reshape((2,self.link))                     # Update task Jacobian
+        positionJacobian = np.hstack((positionJacobian, np.zeros((2, robot.dof - self.link))))
+        self.J[0:2,:] = positionJacobian # Update task Jacobian
+
+        orientationJacobian = robot.getLINKJacobian(self.link)[5,:].reshape((1,self.link))   # Update task Jacobian
+        orientationJacobian =  np.hstack((orientationJacobian, np.zeros((1, robot.dof - self.link))))
+        self.J[2,:] = orientationJacobian
+
+        current_transform = robot.getLinkTransform(self.link) # Compute current sigma
+        current_sigma_angle = np.arctan2(current_transform[1,0], current_transform[0,0]) # Compute current sigma angle
+        current_sigma_pos = current_transform[0:2,3] # Compute current sigma position
         error_pos = self.getDesired()[0:2] - current_sigma_pos.reshape((2,1)) # Compute position error
         error_angle = self.getDesired()[2] - current_sigma_angle
         print ("angular error: ", error_angle)
         self.err = np.array([error_pos[0], error_pos[1], error_angle]).reshape((3,1)) # Update task error
+        self.erroVec[0].append(np.linalg.norm(error_pos))
+        self.erroVec[1].append(error_angle[0])
+        pass
+    def setRandomDesired(self):
+        self.setDesired(np.array([np.random.rand(1,1)*2-1,np.random.rand(1,1)*2-1, np.random.rand(1,1)*2*np.pi-np.pi]).reshape((3,1)))
         pass
         
 ''' 
@@ -231,6 +298,10 @@ class JointPosition(Task):
         self.link = link
         self.J = np.zeros((1,self.link))# Initialize with proper dimensions
         self.err = np.zeros((1,1))# Initialize with proper dimensions
+        self.setK(np.eye(1))
+        self.setFF(np.zeros((1,1)))
+
+
         
     def update(self, robot: Manipulator):
         self.J = robot.getLINKJacobian(self.link)[5,:].reshape((1,self.link))   # Update task Jacobian
@@ -239,7 +310,12 @@ class JointPosition(Task):
         print('current_sigma:',current_sigma)
         self.err = wrapangle(self.getDesired() - current_sigma.reshape((1,1))) # Update task error
         print ("angular error: ", self.err)
+        self.erroVec.append(self.err[0])
         pass # to remove
+
+    def setRandomDesired(self):
+        self.setDesired( (np.random.rand(1,1)*2*np.pi-np.pi).reshape((1,1)))
+        pass
 
 ''' 
     Subclass of Task, representing the Obstacle avoidance task.
@@ -251,14 +327,17 @@ class Obstacle2D(Task):
         self.activation_tresh = thresholds[0]
         self.deactivation_tresh = thresholds[1]
         self.J = np.zeros((2,robot.dof))# Initialize with proper dimensions
-        self.err = np.zeros((2,1))# Initialize with proper dimensions
+        self.err = np.zeros((1,1))# Initialize with proper dimensions
         self.active = False
+        self.setK(np.eye(2))
+        self.setFF(np.zeros((2,1)))
     
     def activate (self, sigma):
         if self.active == False and np.linalg.norm(sigma) <= self.activation_tresh:
             self.active = True
         elif self.active == True and np.linalg.norm(sigma) >= self.deactivation_tresh:
             self.active = False
+
     def update(self, robot: Manipulator):
         self.J = robot.getEEJacobian()[:2,:].reshape((2,robot.dof))   # Update task Jacobian
         current_sigma = robot.getEETransform()[:2,3].reshape((2,1)) - self.position#g get EE x & y
@@ -267,3 +346,46 @@ class Obstacle2D(Task):
         self.err = current_sigma/np.linalg.norm(current_sigma)
         print ("angular error: ", self.err)
         pass # to remove
+
+class JointLimit2D(Task):
+    def __init__(self, name, link, limits, tresholds):
+        super().__init__(name, None)
+        self.link = link
+        self.limits = limits
+        self.activation_tresh = tresholds[0]
+        self.deactivation_tresh = tresholds[1]
+        self.J = np.zeros((1,self.link))# Initialize with proper dimensions
+        self.err = np.zeros((1,1))# Initialize with proper dimensions
+        self.setK(np.eye(1))
+        self.setFF(np.zeros((1,1)))
+        self.active = 0
+
+    def update(self, robot: Manipulator):
+        self.J = robot.getLINKJacobian(self.link)[5,:].reshape((1,self.link))   # Update task Jacobian
+        self.J = np.pad(self.J, (0, robot.dof - self.link), mode='constant', constant_values=0)
+        current_sigma = robot.getLinkOrientation(self.link) # Compute current sigma
+        self.activate(current_sigma)
+        print('current_sigma:',current_sigma)
+        self.err = np.array([1*self.active]) # Update task error
+        print ("angular error: ", self.err)
+        self.erroVec.append(self.err)
+        pass # to remove
+
+    
+    def activate (self, angle):
+        if self.active == 0 and angle >=  self.limits[0] - self.activation_tresh:
+            self.active = -1
+        elif self.active == 0 and angle <= self.limits[1] + self.activation_tresh:
+            self.active = 1
+        elif self.active == -1 and angle <= self.limits[0] - self.deactivation_tresh:
+            self.active = 0
+        elif self.active == 1 and angle >= self.limits[1] + self.deactivation_tresh:
+            self.active = 0
+    
+    def isActive(self):
+        return abs(self.active)
+
+
+    def setRandomDesired(self):
+        self.setDesired( (np.random.rand(1,1)*2*np.pi-np.pi).reshape((1,1)))
+        pass

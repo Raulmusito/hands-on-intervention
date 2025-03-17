@@ -14,12 +14,12 @@ robot = Manipulator(d, theta, a, alpha, revolute)   # Manipulator object
 
 # Task hierarchy definition
 tasks = [ 
-            Position2D("End-effector position", np.array([1,-1]).reshape(2,1), robot,1),
-            #Orientation2D("End-effector orientation", np.array([np.pi]).reshape(1,1), robot,1)
+            Position2D("End-effector position", np.array([1,-1]).reshape(2,1), robot,3),
+            #Orientation2D("End-effector orientation", np.array([np.pi]).reshape(1,1), robot,3)
             #Configuration2D("End-effector configuration", np.array([-1,-1,-np.pi/2]).reshape(3,1), robot,3),
-            #JointPosition("Joint 1",  np.array([np.pi/2]).reshape(1,1), robot,1),
+            JointPosition("Joint 1",  np.array([0]).reshape(1,1), robot,1),
             #JointPosition("Joint 2",  np.array([0]).reshape(1,1), robot,2),
-            JointPosition("Joint 3",  np.array([-np.pi/2]).reshape(1,1), robot,3)
+            #JointPosition("Joint 3",  np.array([-np.pi/2]).reshape(1,1), robot,3)
         ] 
 
 # Simulation params
@@ -112,6 +112,10 @@ def simulate(t):
 # Run simulation
 animation = anim.FuncAnimation(fig, simulate, np.arange(0, 10, dt), 
                                 interval=10, blit=True, init_func=init, repeat=True)
+plt.ylabel('y[m]')
+plt.xlabel('x[m]')
+plt.grid()
+plt.title('Simulation')
 plt.show()
 
 # Plot errors
@@ -123,8 +127,9 @@ for i in tasks:
     else:
         plt.plot(tt[:len(i.erroVec)], i.erroVec, label=i.name)
 plt.title('Error Values Over Time')
-plt.xlabel('Error [s]')
-plt.ylabel('Joint Values [rads]')
+plt.xlabel('time [s]')
+plt.ylabel('Error')
+plt.grid()
 
 plt.legend()
 plt.show()

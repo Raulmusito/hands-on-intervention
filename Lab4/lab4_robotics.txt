@@ -198,7 +198,7 @@ class Position2D(Task):
         super().__init__(name, desired)
         self.J = np.zeros((2,robot.getDOF()))                  # Initialize with proper dimensions
         self.err = np.zeros((2,1))                                  # Initialize with proper dimensions
-        self.setK(np.eye(2))
+        self.setK(np.array([[3,0], [0, 3]]))
         self.setFF(np.zeros((2,1)))
         self.link = link
         
@@ -239,6 +239,7 @@ class Orientation2D(Task):
 
     def setRandomDesired(self):
         self.setDesired( (np.random.rand(1,1)*2*np.pi-np.pi).reshape((1,1)))
+        self.setDesired(np.array([np.pi]).reshape(1,1))
         pass
 '''
     Subclass of Task, representing the 2D configuration task.
