@@ -1,0 +1,135 @@
+from lab4_robotics import * # Includes numpy import
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
+import numpy as np
+import time
+
+# Robot model - 3-link manipulator
+d = np.zeros(3)                                     # displacement along Z-axis
+theta = np.array([0.2,0.5,0.4]).reshape(1,3)[0]     # rotation around Z-axis (q)
+alpha = np.zeros(3)                                 # displacement along X-axis
+a = np.array([0.75, 0.5, 0.4]).reshape(1,3)[0]      # rotation around X-axis 
+revolute = [True,True,True]                         # flags specifying the type of joints
+robot = Manipulator(d, theta, a, alpha, revolute)   # Manipulator object
+
+# Task hierarchy definition
+tasks = [ 
+            Position2D("End-effector position", np.array([1,-1]).reshape(2,1), robot,3),
+            #Orientation2D("End-effector orientation", np.array([np.pi]).reshape(1,1), robot,3)
+            #Configuration2D("End-effector configuration", np.array([-1,-1,-np.pi/2]).reshape(3,1), robot,3),
+            JointPosition("Joint 1",  np.array([0]).reshape(1,1), robot,1),
+            #JointPosition("Joint 2",  np.array([0]).reshape(1,1), robot,2),
+            #JointPosition("Joint 3",  np.array([-np.pi/2]).reshape(1,1), robot,3)
+        ] 
+
+# Simulation params
+dt = 1.0/60.0               # Time step
+Tt = 500                     # Total simulation time
+tt = np.arange(0, Tt, dt)   # Simulation time vector
+start_time = time.time()    # Start time
+
+# Drawing preparation
+fig = plt.figure()
+ax = fig.add_subplot(111, autoscale_on=False, xlim=(-2, 2), ylim=(-2,2))
+ax.set_title('Simulation')
+ax.set_aspect('equal')
+ax.grid()
+ax.set_xlabel('x[m]')
+ax.set_ylabel('y[m]')
+line, = ax.plot([], [], 'o-', lw=2) # Robot structure
+path, = ax.plot([], [], 'c-', lw=1) # End-effector path
+point, = ax.plot([], [], 'rx') # Target
+PPx = []
+PPy = []
+
+# Simulation initialization
+def init():
+    global tasks
+    line.set_data([], [])
+    path.set_data([], [])
+    point.set_data([], [])
+    return line, path, point
+
+# Simulation loop
+def simulate(t):
+    global tasks
+    global robot
+    global PPx, PPy
+    global start_time
+
+    ### Recursive Task-Priority algorithm
+    # Initialize null-space projector
+    # Initialize output vector (joint velocity)
+    # Loop over tasks
+        # Update task state
+        # Compute augmented Jacobian
+        # Compute task velocity
+        # Accumulate velocity
+        # Update null-space projector
+    ###
+
+
+    null_space = np.eye(robot.dof)                  # initial null space P (projector)
+    dq = np.zeros(robot.dof).reshape(-1, 1)         # initial quasi-velocities
+
+    for i in tasks:
+        i.update(robot)                             # update task Jacobian and error
+        print ("i.getJacobian(): ", i.J)
+        print ("null_space: ", null_space)
+        J = i.getJacobian()           # task full Jacobian
+        Jbar = (J @ null_space)                      # projection of task in null-space
+        Jbar_inv = DLS(Jbar, 0.1)                    # pseudo-inverse or DLS
+        print ("Jbar_inv: ", Jbar_inv)
+        print ("j@dq: ", J@dq)
+        print ("i.getError(): ", i.getError())
+        print ("k: ", i.getK)
+        dq += Jbar_inv @ ((i.getK()@i.getError()-J@dq) + i.ff)      # calculate quasi-velocities with null-space tasks execution
+        null_space = null_space - np.linalg.pinv(Jbar) @ Jbar   # update null-space projector
+
+
+    current_time = time.time()
+    # Verify 10 sec
+    if (current_time - start_time) >= 5: #or errorvec1[-1] < 0.1:
+        start_time = current_time  # Reiniciar el tiempo
+        for i in tasks:
+            i.setRandomDesired()
+    
+
+    # Update robot
+    robot.update(dq, dt)
+    
+    # Update drawing
+    PP = robot.drawing()
+    line.set_data(PP[0,:], PP[1,:])
+    PPx.append(PP[0,-1])
+    PPy.append(PP[1,-1])
+    path.set_data(PPx, PPy)
+    if len(tasks[0].getDesired()) > 1:
+        point.set_data(tasks[0].getDesired()[0], tasks[0].getDesired()[1])
+
+    return line, path, point
+
+# Run simulation
+animation = anim.FuncAnimation(fig, simulate, np.arange(0, 10, dt), 
+                                interval=10, blit=True, init_func=init, repeat=True)
+plt.ylabel('y[m]')
+plt.xlabel('x[m]')
+plt.grid()
+plt.title('Simulation')
+plt.show()
+
+# Plot errors
+plt.figure()
+for i in tasks:
+    if type(i) is Configuration2D:
+        plt.plot(tt[:len(i.erroVec[0])], i.erroVec[0], label='Position Error')
+        plt.plot(tt[:len(i.erroVec[1])], i.erroVec[1], label='Angular Error')
+    else:
+        plt.plot(tt[:len(i.erroVec)], i.erroVec, label=i.name)
+plt.title('Error Values Over Time')
+plt.xlabel('time [s]')
+plt.ylabel('Error')
+plt.grid()
+
+plt.legend()
+plt.show()
