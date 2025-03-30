@@ -14,7 +14,7 @@ revolute = [True, True, True]                     # flags specifying the type of
 robot = MobileManipulator(d, theta, a, alpha, revolute)
 
 # Task definition
-limits = np.array([np.pi/5, -np.pi/5])
+limits = np.array([np.pi/2, -np.pi/2])
 
 desiredVector = [np.array([-1,-1,0]).reshape(3,1),
                  np.array([ -1, 1, np.pi/2]).reshape(3,1),
@@ -23,9 +23,9 @@ desiredVector = [np.array([-1,-1,0]).reshape(3,1),
                  np.array([-1, 1, 0      ]).reshape(3,1)]
 
 tasks = [
-        Configuration2D("End-effector configuration", robot,5, desiredVector),
-        #JointLimit2D("Joint limits", 3, limits, tresholds=[0.03, 0.03]),
-        #Position2D("End-effector position", robot, 5),
+        #Configuration2D("End-effector configuration", robot,5, desiredVector),
+        JointLimit2D("Joint limits", 3, limits, tresholds=[0.03, 0.03]),
+        Position2D("End-effector position", robot, 5),
         #Orientation2D("End-effector orientation", np.array([np.pi]).reshape(1,1), robot,5)
         ] 
 
@@ -101,7 +101,7 @@ def simulate(t):
             J = i.getJacobian()           # task full Jacobian
             Jbar = (J @ null_space)                      # projection of task in null-space
             DLS_weights = np.diag([2, 2, 0.5, 0.5, 0.5]) # weights for DLS
-            Jbar_inv = DLS(Jbar, 0.05, DLS_weights)                    # pseudo-inverse or DLS
+            Jbar_inv = DLS(Jbar, 0.05)                    # pseudo-inverse or DLS
             """ print ("Jbar_inv: ", Jbar_inv)
             print ("j@dq: ", J@dq)
             print ("i.getError(): ", i.getError()) 
@@ -112,7 +112,7 @@ def simulate(t):
     # Verify 10 sec
     if (current_time - start_time) >= 5: #or errorvec1[-1] < 0.1:
         start_time = current_time  # Reiniciar el tiempo
-        tasks[-1].setRandomDesired(random = 1) # the last task always has to be the 2d position
+        tasks[-1].setRandomDesired()#random = 1) # the last task always has to be the 2d position
     # Update robot
     robot.update(dq, dt, method)
     
@@ -150,9 +150,14 @@ for i in tasks:
         continue
     elif type(i) is JointLimit2D:
         plt.plot(tt[:len(robot.story)], robot.story, label=i.name)
-        plt.axhline(y=limits[0], color='r', linestyle='--')
-        plt.axhline(y=limits[1], color='r', linestyle='--')
+        """ upper_limit = np.array(robot.story_base) + limits[0]
+        lower_limit = np.array(robot.story_base) + limits[1]
+        print ("upper_limit: ", upper_limit)
+        print ("lower_limit: ", lower_limit)
+        plt.plot(tt[:len(robot.story_base)], upper_limit, label='Upper limit', color ='red')
+        plt.plot(tt[:len(robot.story_base)], lower_limit, label='Lower limit', color ='red') """
     else:
+        print (i.name)
         plt.plot(tt[:len(i.erroVec)], i.erroVec, label=i.name)
 
 # paint line indicating limit of the angles

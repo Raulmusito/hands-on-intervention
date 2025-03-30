@@ -23,7 +23,8 @@ class MobileManipulator:
         self.dof = len(self.revoluteExt) # Number of DOF of the system
         self.q = np.zeros((len(self.revolute),1)) # Vector of joint positions (manipulator)
         self.eta = np.zeros((3,1)) # Vector of base pose (position & orientation)
-
+        self.story = []
+        self.story_base = []
         self.update(np.zeros((self.dof,1)), 0.0) # Initialise robot state
 
     '''
@@ -35,6 +36,8 @@ class MobileManipulator:
     '''
     def update(self, dQ, dt, method = 3 ):
         # Update manipulator
+        self.story.append(-self.q[2][0] )
+        self.story_base.append(self.eta[0][0])
         self.q += dQ[2:, 0].reshape(-1,1) * dt
         for i in range(len(self.revolute)):
             if self.revolute[i]:
@@ -148,7 +151,7 @@ class MobileManipulator:
     def getLinkOrientation(self, link):
         linkT = self.getLinkTransform(link)
         linkBase = self.getLinkTransform(0)
-        base_anlge = np.arctan2(linkBase[1,0], linkBase[0,0])
-        joint_angle = np.arctan2(linkT[1,0], linkT[0,0])
-        return np.array(joint_angle - base_anlge).reshape((1,1))
+        base_anlge = wrapangle(np.arctan2(linkBase[1,0], linkBase[0,0]))
+        joint_angle = wrapangle(np.arctan2(linkT[1,0], linkT[0,0]))
+        return np.array(wrapangle(joint_angle - base_anlge)).reshape((1,1))
 
