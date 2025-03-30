@@ -100,7 +100,7 @@ def simulate(t):
             print ("null_space: ", null_space) """
             J = i.getJacobian()           # task full Jacobian
             Jbar = (J @ null_space)                      # projection of task in null-space
-            DLS_weights = np.diag([2, 2, 0.5, 0.5, 0.5]) # weights for DLS
+            DLS_weights = np.diag([1, 1, 1, 1, 1]) # weights for DLS
             Jbar_inv = DLS(Jbar, 0.05, DLS_weights)                    # pseudo-inverse or DLS
             """ print ("Jbar_inv: ", Jbar_inv)
             print ("j@dq: ", J@dq)
