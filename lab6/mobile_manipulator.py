@@ -23,9 +23,9 @@ desiredVector = [np.array([-1,-1,0]).reshape(3,1),
                  np.array([-1, 1, 0      ]).reshape(3,1)]
 
 tasks = [
-        #Configuration2D("End-effector configuration", robot,5, desiredVector),
-        JointLimit2D("Joint limits", 3, limits, tresholds=[0.03, 0.03]),
-        Position2D("End-effector position", robot, 5),
+        Configuration2D("End-effector configuration", robot,5, desiredVector),
+        #JointLimit2D("Joint limits", 3, limits, tresholds=[0.03, 0.03]),
+        #Position2D("End-effector position", robot, 5),
         #Orientation2D("End-effector orientation", np.array([np.pi]).reshape(1,1), robot,5)
         ] 
 
@@ -101,7 +101,7 @@ def simulate(t):
             J = i.getJacobian()           # task full Jacobian
             Jbar = (J @ null_space)                      # projection of task in null-space
             DLS_weights = np.diag([2, 2, 0.5, 0.5, 0.5]) # weights for DLS
-            Jbar_inv = DLS(Jbar, 0.05)                    # pseudo-inverse or DLS
+            Jbar_inv = DLS(Jbar, 0.05, DLS_weights)                    # pseudo-inverse or DLS
             """ print ("Jbar_inv: ", Jbar_inv)
             print ("j@dq: ", J@dq)
             print ("i.getError(): ", i.getError()) 
@@ -141,51 +141,46 @@ plt.show()
 
 
 # Plot errors
-plt.figure()
+
+
+plt.figure(figsize=(10, 8))
+
+# First subplot: Error Values Over Time
+plt.subplot(2, 1, 1)
 for i in tasks:
-    if type(i) is Configuration2D:
+    if isinstance(i, Configuration2D):
         plt.plot(tt[:len(i.erroVec[0])], i.erroVec[0], label='Position Error')
         plt.plot(tt[:len(i.erroVec[1])], i.erroVec[1], label='Angular Error')
-    elif type(i) is Obstacle2D :
+    elif isinstance(i, Obstacle2D):
         continue
-    elif type(i) is JointLimit2D:
+    elif isinstance(i, JointLimit2D):
         plt.plot(tt[:len(robot.story)], robot.story, label=i.name)
-        """ upper_limit = np.array(robot.story_base) + limits[0]
-        lower_limit = np.array(robot.story_base) + limits[1]
-        print ("upper_limit: ", upper_limit)
-        print ("lower_limit: ", lower_limit)
-        plt.plot(tt[:len(robot.story_base)], upper_limit, label='Upper limit', color ='red')
-        plt.plot(tt[:len(robot.story_base)], lower_limit, label='Lower limit', color ='red') """
     else:
-        print (i.name)
         plt.plot(tt[:len(i.erroVec)], i.erroVec, label=i.name)
 
-# paint line indicating limit of the angles
-
 plt.title('Error Values Over Time')
-plt.xlabel('time [s]')
+plt.xlabel('Time [s]')
 plt.ylabel('Error')
 plt.grid()
-
 plt.legend()
-plt.show()
 
-
+# Second subplot: Velocity History
+plt.subplot(2, 1, 2)
 velocity_history = np.array(velocity_history)
-print (velocity_history.shape)                           
-# plot velocities history against time
-plt.figure()
-plt.plot(tt[:len(velocity_history)], velocity_history[:,0], label='angular velocity history')
-plt.plot(tt[:len(velocity_history)], velocity_history[:,1], label='linear velocity history')
-plt.plot(tt[:len(velocity_history)], velocity_history[:,2], label='Joint 1 velocity history')
-plt.plot(tt[:len(velocity_history)], velocity_history[:,3], label='Joint 2 velocity history')
-plt.plot(tt[:len(velocity_history)], velocity_history[:,4], label='Joint 3 velocity history')
-    
+plt.plot(tt[:len(velocity_history)], velocity_history[:, 0], label='Angular Velocity')
+plt.plot(tt[:len(velocity_history)], velocity_history[:, 1], label='Linear Velocity')
+plt.plot(tt[:len(velocity_history)], velocity_history[:, 2], label='Joint 1 Velocity')
+plt.plot(tt[:len(velocity_history)], velocity_history[:, 3], label='Joint 2 Velocity')
+plt.plot(tt[:len(velocity_history)], velocity_history[:, 4], label='Joint 3 Velocity')
+
 plt.title('Velocity History')
-plt.xlabel('time [s]')
+plt.xlabel('Time [s]')
 plt.ylabel('Velocity')
 plt.grid()
 plt.legend()
+
+# Adjust layout and show
+plt.tight_layout()
 plt.show()
 
 
